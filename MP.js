@@ -32,7 +32,7 @@ function MP(callBack) {
     }
     return err
   }
-  // 立即执行当前Promise中的同步代码
+  // 立即执行当前MP中的同步代码
   try {
     callBack(this.resolve, this.reject)
   } catch (error) {
@@ -52,7 +52,7 @@ MP.prototype.then = function (successCk, errorCk) {
       return err
     }
   }
-  return new Promise((reslove, reject) => {
+  return new MP((reslove, reject) => {
     if(that.status === SUCCESS) {
       const res = that.resolve()
       successCk(res)
@@ -82,16 +82,21 @@ MP.prototype.catch = function (errorck) {
 
 MP.prototype.all = function (ps) {
   let arr = []
+  let k = 0
+  let len = ps.length
   return new MP((resolve, reject) => {
     for(let k in ps) {
       let p = ps[k]
       p.then((res) => {
         arr.push(res)
+        k++
+        if (len === k) {
+          resolve(arr)
+        }
       }).catch( err => {
         reject(err)
       })
     }
-    resolve(arr)
   })
 }
 
@@ -120,23 +125,42 @@ MP.prototype.finally = function (fnCk) {
   })
 }
 
-const a = new MP((reslove, reject) => {
-  console.log('测试promise')
-  setTimeout(() => {
-    try {
-      console.log('setTimeout: 1s')
-      reslove('1s')
-    } catch (error) {
-      reject(error)
-    }
-  }, 1000);
-}).then(data => {
-  console.log('data', data)
-  return '2s'
-}).then(data => {
-  throw new Error('状态有误')
-  console.log('data', data)
-  return '3s'
-}).catch(err => {
-  console.log('error', err)
+function a() {
+  return new MP((resolve, reject) => {
+      setTimeout(() => {
+          console.log(1);
+          resolve('success 1');
+      })
+  });
+}
+
+
+function b() {
+  return new MP((resolve, reject) => {
+      setTimeout(() => {
+          console.log(2);
+
+          resolve('MP is err 2');
+      })
+  });
+}
+
+function c() {
+  return new MP((resolve, reject) => {
+      setTimeout(() => {
+          console.log(3);
+          resolve('success 3');
+      }, 1000)
+  });
+}
+
+let bb = new MP((resolve) => {
+  resolve(1)
 })
+let cc = bb.all([a(),b(),c()])
+console.log('cc', cc)
+cc.then(res => {
+  console.log('res', res);
+}).catch(err => {
+  console.log(err);
+});
